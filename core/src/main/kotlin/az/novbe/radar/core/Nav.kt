@@ -138,10 +138,11 @@ object Nav {
         val visible = tree.nodes.filter { !it.box.isEmpty }
         if (sig.viewId != null) {
             val byId = visible.filter { sig.idMatches(it) }
-            if (byId.isNotEmpty()) {
-                val withText = byId.filter { n -> tree.subtreeIds(n.id).any { sig.textMatches(tree[it]) } }
-                return (withText.ifEmpty { byId }).minByOrNull { it.box.top }?.id
-            }
+            // Mətnli imzada id tək kifayət deyil: ümumi id ("title" kimi) başqa elementdə də ola bilər
+            val pick = if (sig.text != null || sig.desc != null) {
+                byId.filter { n -> tree.subtreeIds(n.id).any { sig.textMatches(tree[it]) } }
+            } else byId
+            pick.minByOrNull { it.box.top }?.let { return it.id }
         }
         return visible.filter { sig.textMatches(it) }.minByOrNull { it.box.top }?.id
     }

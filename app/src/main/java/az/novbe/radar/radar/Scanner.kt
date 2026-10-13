@@ -278,24 +278,29 @@ class Scanner(private val svc: AccessibilityService, private val overlay: ScanOv
             if (tap(tree, id)) waitForScreen(pkg, Screen.AVAILABLE, 5000)?.let { return it }
         }
 
-        // 2) "N SHIFTS AVAILABLE" sətri; görünmürsə siyahını aşağı sürüşdür
-        repeat(6) {
+        // 2) "N SHIFTS AVAILABLE" sətri; görünmürsə siyahını sürüşdür: əvvəl aşağı, sonda isə yuxarı
+        // (qrafik oxunandan sonra siyahı artıq sondadır)
+        var forward = true
+        var failedTaps = 0
+        repeat(12) {
             check()
             if (!inApp(pkg)) return null
             val (tree, p) = fresh() ?: return null
             if (p.screen == Screen.AVAILABLE) return p
             if (p.screen == Screen.LOGIN) return null
-            val entry = Nav.availableEntry(p)
+            val entry = Nav.availableEntry(p)?.takeIf { failedTaps < 3 }
             if (entry != null && tap(tree, entry.nodeId)) {
                 waitForScreen(pkg, Screen.AVAILABLE, 5000)?.let { return it }
+                failedTaps++
                 // Başqa bir ekran açıldısa, geri qayıt
                 val now = fresh()?.second
                 if (now != null && now.screen != Screen.SCHEDULE && now.screen != Screen.AVAILABLE && inApp(pkg)) {
                     svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
                     pause(700)
                 }
-            } else if (!scroll(forward = true)) {
-                return page()?.takeIf { it.screen == Screen.AVAILABLE }
+            } else if (!scroll(forward)) {
+                if (!forward) return page()?.takeIf { it.screen == Screen.AVAILABLE }
+                forward = false
             }
             pause(500)
         }

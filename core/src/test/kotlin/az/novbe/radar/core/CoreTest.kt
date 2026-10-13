@@ -184,6 +184,21 @@ class NavTest {
         val id = Nav.findSig(tree, sig)!!
         assertEquals("4 SHIFTS AVAILABLE", tree[id].text)
     }
+
+    @Test fun learnedSignatureNeedsText() {
+        val sig = NodeSig("evo:id/label", "4 SHIFTS AVAILABLE", null, "android.widget.TextView")
+        fun tree(entry: String?): UiTree {
+            val b = UiTreeBuilder("evo.test", Fixtures.W, Fixtures.H)
+            val root = b.add(-1, "android.widget.FrameLayout", null, null, null, null, Box(0, 0, Fixtures.W, Fixtures.H))
+            b.add(root, "android.widget.TextView", "evo:id/label", "D1 Sample RL", null, null, Box(139, 365, 284, 388))
+            if (entry != null) b.add(root, "android.widget.TextView", "evo:id/label", entry, null, null, Box(139, 843, 371, 868))
+            return b.build()
+        }
+        val t1 = tree("2 SHIFTS AVAILABLE")
+        assertEquals("2 SHIFTS AVAILABLE", t1[Nav.findSig(t1, sig)!!].text)
+        // Uyğun mətn yoxdursa, eyni id-li başqa elementə (masa adına) toxunulmur
+        assertNull(Nav.findSig(tree(null), sig))
+    }
 }
 
 class StitchTest {
