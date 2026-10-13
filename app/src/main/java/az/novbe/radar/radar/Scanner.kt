@@ -89,18 +89,21 @@ class Scanner(private val svc: AccessibilityService, private val overlay: ScanOv
 
     /**
      * Node-lardan oxu; mətn alınmasa ekran şəkli + cihazda OCR (ehtiyat yol).
+     * [ocr] = false: yalnız node-lar (gözləmə dövrlərində, ekran yüklənərkən).
      * [ocrEveryMs]: OCR-lar arası minimum fasilə (passiv oxumada seyrək, batareya üçün).
      */
-    private suspend fun page(ocrEveryMs: Long = 1200): Page? {
+    private suspend fun page(ocr: Boolean = true, ocrEveryMs: Long = 1200): Page? {
         check()
         val p = fresh()?.second
+        if (!ocr) return p
         if (p != null && p.screen in KNOWN) return p
         if (p != null && p.screen != Screen.EMPTY && p.lines.size >= 6) return p
         val now = System.currentTimeMillis()
         if (now - lastOcr < ocrEveryMs) return p
         lastOcr = now
         val tree = runCatching {
-            if (overlay != null) overlay.hidden { OcrReader.read(svc) } else OcrReader.read(svc)
+            // Tam ekran şəklində qara pərdə görünməsin deyə onu bir anlıq gizlədirik
+            OcrReader.read(svc) { shot -> if (overlay != null) overlay.hidden { shot() } else shot() }
         }.getOrNull() ?: return p
         val op = Parser.parse(tree)
         if (op.screen in KNOWN) {
@@ -241,31 +244,37 @@ class Scanner(private val svc: AccessibilityService, private val overlay: ScanOv
     private fun inApp(pkg: String): Boolean =
         svc.rootSafe()?.packageName?.toString() == pkg
 
-    /** Ekran dəyişməyi dayandırana qədər gözlə (yüklənmə bitsin). */
+    /**
+     * Ekran dəyişməyi dayandırana qədər gözlə (yüklənmə bitsin). Gözləyərkən yalnız node-lar oxunur,
+     * OCR isə ən sonda bir dəfə — yüklənmə ekranında qara pərdə təkrar-təkrar gizlənməsin.
+     */
     private suspend fun stablePage(pkg: String): Page? {
         var last: Page? = null
         var lastSig = ""
-        repeat(12) {
+        repeat(20) {
             pause(300)
             if (!inApp(pkg)) return@repeat
-            val p = page() ?: return@repeat
+            val p = page(ocr = false) ?: return@repeat
             val sig = p.signature
-            if (sig == lastSig && p.screen != Screen.EMPTY) return p
+            if (sig == lastSig && p.screen != Screen.EMPTY) return withOcr(p)
             lastSig = sig
             last = p
         }
-        return last
+        return last?.let { withOcr(it) }
     }
+
+    private suspend fun withOcr(p: Page): Page = if (p.screen in KNOWN) p else page() ?: p
 
     private suspend fun waitForScreen(pkg: String, screen: Screen, timeout: Long): Page? {
         val end = System.currentTimeMillis() + timeout
         while (System.currentTimeMillis() < end) {
             pause(300)
             if (!inApp(pkg)) continue
-            val p = page() ?: continue
+            val p = page(ocr = false) ?: continue
             if (p.screen == screen) return stablePage(pkg)?.takeIf { it.screen == screen } ?: p
         }
-        return null
+        if (!inApp(pkg)) return null
+        return page()?.takeIf { it.screen == screen }
     }
 
     private suspend fun ensureAvailable(pkg: String): Page? {

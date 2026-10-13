@@ -29,8 +29,10 @@ object EvoFinder {
     }
 
     private fun guess(ctx: Context): String? {
-        val apps = launchableApps(ctx)
-        apps.firstOrNull { a -> NAME_HINTS.any { a.label.contains(it, true) } }?.let { return it.pkg }
-        return apps.firstOrNull { a -> HINTS.any { a.pkg.contains(it, true) } && !a.pkg.startsWith("az.novbe.radar") }?.pkg
+        val apps = launchableApps(ctx).filterNot { it.pkg.startsWith("az.novbe.radar") }
+        apps.firstOrNull { a -> a.label.trim().equals("evo", true) || NAME_HINTS.any { a.label.contains(it, true) } }
+            ?.let { return it.pkg }
+        // Paket adının bir hissəsi "evo" ilə başlamalıdır (com.evolution.app) — "revolut" kimi təsadüfi uyğunluq yox
+        return apps.firstOrNull { a -> a.pkg.lowercase().split('.').any { part -> HINTS.any { part.startsWith(it) } } }?.pkg
     }
 }

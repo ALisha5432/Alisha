@@ -10,6 +10,7 @@ import az.novbe.radar.core.UiTreeBuilder
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
@@ -22,34 +23,48 @@ object OcrReader {
     private val executor = Executors.newSingleThreadExecutor()
     private val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
-    suspend fun read(svc: AccessibilityService): UiTree? {
+    /**
+     * [wholeScreen]: tam ekran şəkli onun içində çəkilir (skan zamanı qara pərdəni gizlətmək üçün).
+     * Android 14+-da əvvəlcə yalnız aktiv pəncərənin (EvoApp) şəkli çəkilir — pərdə ona düşmür.
+     */
+    suspend fun read(
+        svc: AccessibilityService,
+        wholeScreen: suspend (suspend () -> Bitmap?) -> Bitmap? = { it() },
+    ): UiTree? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
-        val bmp = screenshot(svc) ?: return null
-        return recognize(bmp, svc.rootInActiveWindow?.packageName?.toString())
+        val root = svc.rootSafe()
+        val bmp = root?.let { windowShot(svc, it.windowId) } ?: wholeScreen { screenshot(svc) } ?: return null
+        return recognize(bmp, root?.packageName?.toString())
+    }
+
+    private suspend fun windowShot(svc: AccessibilityService, windowId: Int): Bitmap? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return null
+        return suspendCancellableCoroutine { cont ->
+            runCatching { svc.takeScreenshotOfWindow(windowId, executor, callback(cont)) }
+                .onFailure { if (cont.isActive) cont.resume(null) }
+        }
     }
 
     private suspend fun screenshot(svc: AccessibilityService): Bitmap? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
         return suspendCancellableCoroutine { cont ->
-            runCatching {
-                svc.takeScreenshot(
-                    Display.DEFAULT_DISPLAY, executor,
-                    object : AccessibilityService.TakeScreenshotCallback {
-                        override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
-                            val hb = result.hardwareBuffer
-                            val bmp = runCatching {
-                                Bitmap.wrapHardwareBuffer(hb, result.colorSpace)?.copy(Bitmap.Config.ARGB_8888, false)
-                            }.getOrNull()
-                            runCatching { hb.close() }
-                            if (cont.isActive) cont.resume(bmp)
-                        }
+            runCatching { svc.takeScreenshot(Display.DEFAULT_DISPLAY, executor, callback(cont)) }
+                .onFailure { if (cont.isActive) cont.resume(null) }
+        }
+    }
 
-                        override fun onFailure(errorCode: Int) {
-                            if (cont.isActive) cont.resume(null)
-                        }
-                    },
-                )
-            }.onFailure { if (cont.isActive) cont.resume(null) }
+    private fun callback(cont: CancellableContinuation<Bitmap?>) = object : AccessibilityService.TakeScreenshotCallback {
+        override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
+            val hb = result.hardwareBuffer
+            val bmp = runCatching {
+                Bitmap.wrapHardwareBuffer(hb, result.colorSpace)?.copy(Bitmap.Config.ARGB_8888, false)
+            }.getOrNull()
+            runCatching { hb.close() }
+            if (cont.isActive) cont.resume(bmp)
+        }
+
+        override fun onFailure(errorCode: Int) {
+            if (cont.isActive) cont.resume(null)
         }
     }
 
