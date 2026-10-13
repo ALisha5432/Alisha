@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Növbə Radarı</string>
+    <string name="a11y_label">Növbə Radarı</string>
+    <string name="a11y_description">Növbə Radarı EvoApp-da \"Available Shifts\" ekranını oxuyur və seçdiyin saatda (məs. 16:00–00:00) növbə ortaya atılanda bildiriş göndərir. Yalnız oxuyur: RESPOND və digər düymələrə heç vaxt özü basmır. Naviqasiya üçün yalnız \"Available Shifts\" girişinə və ay oxlarına toxunur.</string>
+</resources>
