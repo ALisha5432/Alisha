@@ -29,8 +29,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Sabit imza açarı: ya repodakı signing/ qovluğu (repo private olanda),
-      # ya da RADAR_KEYSTORE_B64 + RADAR_KEYSTORE_PASSWORD secret-ləri.
+      # Sabit imza açarı. Parol yalnız RADAR_KEYSTORE_PASSWORD secret-indədir (repoda yox).
+      # Açar hələ yoxdursa, ilk build onu bu parolla yaradır və şifrəli halda signing/-ə yazır;
+      # sonrakı bütün build-lər eyni açarla imzalanır. RADAR_KEYSTORE_B64 secret-i də dəstəklənir.
       - name: Signing key
         id: key
         env:
@@ -40,6 +41,22 @@ jobs:
           if [ -n "$KS_B64" ]; then
             mkdir -p signing
             echo "$KS_B64" | base64 -d > signing/release.jks
+          fi
+          if [ ! -f signing/release.jks ] && [ -n "$KS_PASS" ]; then
+            if [ "${#KS_PASS}" -lt 6 ]; then
+              echo "::error::RADAR_KEYSTORE_PASSWORD ən azı 6 simvol olmalıdır."
+              exit 1
+            fi
+            mkdir -p signing
+            keytool -genkeypair -keystore signing/release.jks -storetype PKCS12 -alias novbe \
+              -keyalg RSA -keysize 4096 -validity 10000 \
+              -storepass "$KS_PASS" -keypass "$KS_PASS" -dname "CN=Novbe Radari, O=Personal, C=AZ"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -f signing/release.jks
+            git commit -m "Add the signing keystore (encrypted; its password is only in Actions secrets)"
+            git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+            echo "::notice::Yeni imza açarı yaradıldı və signing/release.jks-ə yazıldı."
           fi
           if [ -f signing/release.jks ] && { [ -n "$KS_PASS" ] || [ -s signing/password.txt ]; }; then
             echo "stable=true" >> "$GITHUB_OUTPUT"

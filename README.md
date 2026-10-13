@@ -80,3 +80,4 @@ Yazılarda iş yoldaşlarının inisialları və masa adları olur — onları i
   filtr, təkrar bildirişin qarşısı) və unit testlər.
 - `app/` — Accessibility xidməti, foreground xidmət (`specialUse`), `AlarmManager.setAlarmClock`, ML Kit OCR (ehtiyat yol).
 - GitHub Actions hər push-da testləri işlədir, APK yığır və (sabit açar varsa) Release yaradır.
+- İmza: parol yalnız GitHub-dakı `RADAR_KEYSTORE_PASSWORD` secret-indədir. Açarı ilk build özü yaradır və şifrəli halda `signing/release.jks`-ə yazır; sonrakı bütün versiyalar eyni açarla imzalanır. Bu secret-i silmə və dəyişmə, yoxsa yeni versiyalar köhnənin üstünə quraşdırılmaz.
