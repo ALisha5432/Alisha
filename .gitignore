@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.kotlin/
+
+# İmza açarı yalnız repo private olanda əlavə edilir (git add -f)
+signing/
