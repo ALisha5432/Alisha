@@ -16,10 +16,14 @@ import az.novbe.radar.R
 import az.novbe.radar.core.Az
 import az.novbe.radar.core.Tracked
 import az.novbe.radar.data.Prefs
+import az.novbe.radar.data.RadarSettings
 
 object Notifier {
     const val CH_SERVICE = "radar_service"
-    const val CH_SHIFT = "radar_shift"
+    // Android 8+-da səs/vibrasiya kanalın özündən gəlir, ona görə hər birləşmə üçün ayrıca kanal
+    const val CH_SHIFT = "radar_shift" // səs + vibrasiya
+    const val CH_SHIFT_SOUND = "radar_shift_sound" // yalnız səs
+    const val CH_SHIFT_VIBRATE = "radar_shift_vibrate" // yalnız vibrasiya
     const val CH_SHIFT_ALARM = "radar_shift_alarm"
     const val CH_WARN = "radar_warn"
 
@@ -47,6 +51,21 @@ object Notifier {
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 350, 200, 350)
                 setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), audio)
+            }
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_SHIFT_SOUND, "Tapılan növbələr (vibrasiyasız)", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Ayarlarda vibrasiya söndürüləndə"
+                enableVibration(false)
+                setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), audio)
+            }
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_SHIFT_VIBRATE, "Tapılan növbələr (səssiz)", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Ayarlarda səs söndürüləndə"
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 350, 200, 350)
+                setSound(null, null)
             }
         )
         val alarmAudio = AudioAttributes.Builder()
@@ -99,10 +118,24 @@ object Notifier {
             .addAction(0, "İndi yoxla", RadarService.scanNowIntent(ctx))
             .build()
 
+    /** Ayarlara görə kanal: alarm, səs+vibrasiya, yalnız səs, yalnız vibrasiya. */
+    fun shiftChannel(s: RadarSettings, quiet: Boolean): String = when {
+        s.alarmMode && !quiet -> CH_SHIFT_ALARM
+        quiet -> CH_SHIFT
+        s.sound && s.vibrate -> CH_SHIFT
+        s.sound -> CH_SHIFT_SOUND
+        s.vibrate -> CH_SHIFT_VIBRATE
+        else -> CH_SHIFT
+    }
+
+    fun inQuietNow(s: RadarSettings): Boolean {
+        val now = java.time.LocalTime.now()
+        return s.inQuietHours(now.hour * 60 + now.minute)
+    }
+
     fun notifyShift(ctx: Context, t: Tracked) {
         val s = Prefs.s
-        val now = java.time.LocalTime.now()
-        val quiet = s.inQuietHours(now.hour * 60 + now.minute)
+        val quiet = inQuietNow(s)
         val alarm = s.alarmMode && !quiet
         val line = Az.notifLine(t)
         val sub = buildString {
@@ -112,7 +145,7 @@ object Notifier {
             if (t.notifyCount > 1) { if (isNotEmpty()) append(" · "); append("yenidən atıldı") }
         }
         val openEvo = openEvoIntent(ctx)
-        val b = NotificationCompat.Builder(ctx, if (alarm) CH_SHIFT_ALARM else CH_SHIFT)
+        val b = NotificationCompat.Builder(ctx, shiftChannel(s, quiet))
             .setSmallIcon(R.drawable.ic_stat_radar)
             .setContentTitle(line)
             .setContentText(sub.ifEmpty { "Yeni uyğun növbə" })
@@ -121,8 +154,7 @@ object Notifier {
             .setCategory(if (alarm) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_EVENT)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openEvo ?: openAppIntent(ctx))
-        if (quiet || (!s.sound && !alarm)) b.setSilent(true)
-        if (s.vibrate && !quiet) b.setVibrate(longArrayOf(0, 350, 200, 350))
+        if (quiet || (!s.sound && !s.vibrate && !alarm)) b.setSilent(true)
         if (openEvo != null) b.addAction(0, "EvoApp-ı aç", openEvo)
         if (alarm) {
             val stop = PendingIntent.getBroadcast(

@@ -58,7 +58,7 @@ object TestChain {
         Repo.setFound(Repo.found.value + t)
         steps += Step("Tapılanlar siyahısı", true, "test kartı əlavə olundu")
 
-        val (canNotify, why) = notificationsReady(ctx, if (s.alarmMode) Notifier.CH_SHIFT_ALARM else Notifier.CH_SHIFT)
+        val (canNotify, why) = notificationsReady(ctx, Notifier.shiftChannel(s, Notifier.inQuietNow(s)))
         Notifier.notifyShift(ctx, t)
         steps += Step("Bildiriş", canNotify, if (canNotify) Az.notifLine(t) else why)
         Repo.log(LogType.TEST, "Test: ${Az.notifLine(t)}" + if (canNotify) "" else " · $why")

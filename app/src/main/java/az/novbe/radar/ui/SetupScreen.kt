@@ -29,7 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -73,7 +73,7 @@ fun SetupScreen(checks: Checks, canClose: Boolean, onClose: () -> Unit, onDone: 
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (canClose) {
-                IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, "Geri", tint = RC.Text) }
+                IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Geri", tint = RC.Text) }
             }
             ScreenHeader("Quraşdırma", "Hər addımı bir dəfə et — hazır olanlar ✓ olacaq")
         }

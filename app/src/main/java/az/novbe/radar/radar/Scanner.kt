@@ -87,14 +87,17 @@ class Scanner(private val svc: AccessibilityService, private val overlay: ScanOv
         return t to Parser.parse(t)
     }
 
-    /** Node-lardan oxu; mətn alınmasa ekran şəkli + cihazda OCR (ehtiyat yol). */
-    private suspend fun page(): Page? {
+    /**
+     * Node-lardan oxu; mətn alınmasa ekran şəkli + cihazda OCR (ehtiyat yol).
+     * [ocrEveryMs]: OCR-lar arası minimum fasilə (passiv oxumada seyrək, batareya üçün).
+     */
+    private suspend fun page(ocrEveryMs: Long = 1200): Page? {
         check()
         val p = fresh()?.second
         if (p != null && p.screen in KNOWN) return p
         if (p != null && p.screen != Screen.EMPTY && p.lines.size >= 6) return p
         val now = System.currentTimeMillis()
-        if (now - lastOcr < 1200) return p
+        if (now - lastOcr < ocrEveryMs) return p
         lastOcr = now
         val tree = runCatching {
             if (overlay != null) overlay.hidden { OcrReader.read(svc) } else OcrReader.read(svc)
@@ -188,7 +191,7 @@ class Scanner(private val svc: AccessibilityService, private val overlay: ScanOv
 
     /** İstifadəçi özü EvoApp-dadır: yalnız görünən ekranı oxu, heç nəyə toxunma. */
     suspend fun passiveRead(): ScanOutcome {
-        val p = page() ?: return ScanOutcome.Problem("Ekran oxunmadı")
+        val p = page(ocrEveryMs = 8000) ?: return ScanOutcome.Problem("Ekran oxunmadı")
         val now = System.currentTimeMillis()
         when (p.screen) {
             Screen.AVAILABLE -> {

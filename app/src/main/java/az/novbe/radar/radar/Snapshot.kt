@@ -18,6 +18,7 @@ object Snapshot {
         return b.build().takeIf { it.size > 0 }
     }
 
+    @Suppress("DEPRECATION") // recycle() API 33+-da heç nə etmir, köhnə Android üçün qalır
     private fun walk(node: AccessibilityNodeInfo?, parent: Int, b: UiTreeBuilder, tmp: Rect) {
         if (node == null || b.count >= MAX_NODES) return
         node.getBoundsInScreen(tmp)

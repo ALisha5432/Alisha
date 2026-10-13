@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -48,7 +48,7 @@ private class TabDef(val label: String, val icon: ImageVector)
 private val TABS = listOf(
     TabDef("Radar", Icons.Filled.Home),
     TabDef("Tapılanlar", Icons.Filled.Star),
-    TabDef("Jurnal", Icons.Filled.List),
+    TabDef("Jurnal", Icons.AutoMirrored.Filled.List),
     TabDef("Öyrən", Icons.Filled.Search),
     TabDef("Ayarlar", Icons.Filled.Settings),
 )
