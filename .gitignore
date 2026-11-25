@@ -7,5 +7,4 @@ local.properties
 captures/
 .kotlin/
 
-# İmza açarı yalnız repo private olanda əlavə edilir (git add -f)
-signing/
+# Diqqət: wp-radar/signing/wp-radar.jks qəsdən repo-dadır (sabit imza → yeni APK köhnənin üstünə qurulur).

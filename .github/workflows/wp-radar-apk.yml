@@ -1,0 +1,67 @@
+name: WP Radar APK
+
+# Hər push-da (tətbiqin faylları dəyişəndə) APK yığılır və GitHub Releases-ə yüklənir.
+on:
+  push:
+    paths:
+      - 'wp-radar/**'
+      - '.github/workflows/wp-radar-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wp-radar-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: wp-radar
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Testlər və APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace testReleaseUnitTest assembleRelease
+
+      - name: APK-nı hazırla
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk out/WP-Radar.apk
+          ls -l out
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: 1.0.${{ github.run_number }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          {
+            echo "WP Radar $VERSION"
+            echo
+            echo "Yükləmə: aşağıdakı **WP-Radar.apk** faylı."
+            echo
+            echo "Budaq: \`$GITHUB_REF_NAME\` · commit \`${GITHUB_SHA::7}\`"
+            echo
+            printf '%s\n' "$COMMIT_MSG"
+          } > notes.md
+          gh release create "v$VERSION" out/WP-Radar.apk \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "WP Radar $VERSION" \
+            --notes-file notes.md \
+            --latest

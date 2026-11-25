@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Radar: iki dairə, fırlanan şüa və bir "tapılmış" nöqtə. 108dp, mərkəz 54,54. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#6625D366"
+        android:pathData="M54,54 L54,28 A26,26 0 0,1 76.52,41 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF25D366"
+        android:strokeWidth="3"
+        android:pathData="M54,28 A26,26 0 1,1 54,80 A26,26 0 1,1 54,28 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#9925D366"
+        android:strokeWidth="2"
+        android:pathData="M54,38 A16,16 0 1,1 54,70 A16,16 0 1,1 54,38 Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,54 L76.52,41" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,51 A3,3 0 1,1 54,57 A3,3 0 1,1 54,51 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M64.93,37.48 A3.5,3.5 0 1,1 64.93,44.48 A3.5,3.5 0 1,1 64.93,37.48 Z" />
+</vector>
