@@ -17,14 +17,14 @@ Bütün versiyalar eyni imza ilə çıxır, ona görə yenisini köhnəni silmə
 ## Quraşdırma
 
 1. APK-nı açın → «Bu mənbədən quraşdırmağa icazə ver» → **Quraşdır**.
-2. WP Radar → **Əsas** ekran → «1. Bildiriş girişi» → **İcazə ver** → siyahıda WP Radar-ı aktiv edin.
+2. WP Radar → **Əsas** → «Quraşdırma» → «Bildiriş girişi» → **İcazə ver** → siyahıda WP Radar-ı aktiv edin.
    - Android 13+ «Məhdudlaşdırılmış ayar» desə: **Tətbiq məlumatı** → sağ yuxarıda **⋮** →
      **«Məhdud ayarlara icazə verin»** → yenidən cəhd edin.
-3. «2. Bildiriş icazəsi» → **İcazə ver**.
-4. «3. Batareya optimizasiyası» → **Məhdudiyyəti götür** (Xiaomi/Huawei-də «Avtostart»-a da icazə verin).
+3. «Bildiriş icazəsi» → **İcazə ver**.
+4. «Batareya» → **Düzəlt** (Xiaomi/Huawei-də «Avtostart»-a da icazə verin).
 5. **Ayarlar** → açar sözləri əlavə edin (vergüllə bir neçəsini birdən yazmaq olar).
    Qrup siyahısı boş qalsa, bütün qruplarda axtarılır.
-6. **Əsas** → **Test bildirişi** ilə səsi yoxlayın.
+6. **Əsas** → **Test səsi** ilə səsi yoxlayın.
 
 ## Xəbər gəlmədisə
 

@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'wp-radar/**'
+      - '!wp-radar/**/*.md'
       - '.github/workflows/wp-radar-apk.yml'
   workflow_dispatch:
 
