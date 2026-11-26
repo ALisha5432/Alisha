@@ -51,6 +51,13 @@ qrup səssizdədir (mute) və ya arxivdədir, WhatsApp bildirişləri söndürü
 - «Açana qədər çalsın»: səs bildirişə toxunana qədər təkrarlanır.
 - Sürətli paneldə WP Radar düyməsi: radarı bir toxunuşla aç/söndür.
 
+## Dizayn
+
+- Logo: radar şüası mesaj baloncuğunu "tapır". Launcher ikonu adaptivdir, Android 13+ temalı ikon da var.
+- Telefonun işıqlı/qaranlıq temasına uyğunlaşır; radar paneli hər iki temada qaranlıqdır.
+- Əsas ekranda canlı radar: şüa fırlanır, bu gün tapılan mesajlar kəhrəba nöqtələr kimi yanır.
+- İkonlar `res/drawable/ic_*.xml`-dədir (öz çəkilmiş vektorlar).
+
 ## Vacib
 
 - WhatsApp-da qrupu **«Səssiz» (mute) etməyin**. Səssiz qrup üçün WhatsApp bildiriş yaratmır, radar da onu görmür.
@@ -72,5 +79,6 @@ app/src/main/java/com/wpradar/
   service/   NotificationListenerService, bildirişdən məlumat çıxarma, rebind
   notify/    Xəbərdarlıq kanalları və bildiriş
   data/      DataStore: ayarlar, tarixçə; görülən mesajlar faylı
-  ui/        Compose ekranları: Əsas, Ayarlar, Tarixçə
+  ui/        Compose ekranları: Əsas, Ayarlar, Tapılanlar, Jurnal; canlı radar və logo (RadarVisual.kt)
+  ui/theme/  Rənglər (işıqlı/qaranlıq), şrift ölçüləri, formalar
 ```
