@@ -63,4 +63,19 @@ class KeywordMatcherTest {
         assertNull(matcher(keywords = emptyList()).match(group("A", "nə olursa")))
         assertNull(matcher(keywords = listOf("a"), enabled = false).match(group("A", "a")))
     }
+
+    @Test fun evaluateExplainsWhyNoAlert() {
+        val m = matcher(groups = listOf("ofis"), keywords = listOf("ortada"))
+        assertEquals(Verdict.MATCHED, m.evaluate(group("Ofis", "kim ORTADADIR?")).verdict)
+        assertEquals("ortada", m.evaluate(group("Ofis", "kim ORTADADIR?")).keyword)
+        assertEquals(Verdict.NO_KEYWORD, m.evaluate(group("Ofis", "salam")).verdict)
+        assertEquals(Verdict.CHAT_NOT_WATCHED, m.evaluate(group("Ailə", "ortada")).verdict)
+        assertEquals(Verdict.PRIVATE_SKIPPED, m.evaluate(private("ortada")).verdict)
+        assertEquals(Verdict.NO_KEYWORDS, matcher(keywords = emptyList()).evaluate(group("A", "ortada")).verdict)
+        assertEquals(Verdict.DISABLED, matcher(keywords = listOf("a"), enabled = false).evaluate(group("A", "a")).verdict)
+    }
+
+    @Test fun cyrillicMessageMatchesLatinKeyword() {
+        assertEquals("ortada", matcher(keywords = listOf("ortada")).match(group("A", "\u043A\u0438\u043C \u043E\u0440\u0442\u0430\u0434\u0430?")))
+    }
 }

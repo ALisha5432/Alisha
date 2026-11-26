@@ -4,19 +4,24 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.NotificationManager
+import android.app.StatusBarManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.service.notification.NotificationListenerService
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.wpradar.R
+import com.wpradar.service.RadarTileService
 import com.wpradar.service.WaListenerService
 
 /** İcazələrin vəziyyəti və uyğun sistem ayarlarını açan köməkçilər. */
@@ -104,6 +109,22 @@ object SystemStatus {
         context,
         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")),
     ) || safeStart(context, Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+
+    /** Android 13+: "Sürətli panelə əlavə et" sistem pəncərəsi. */
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    fun requestAddTile(context: Context) {
+        val sbm = context.getSystemService(StatusBarManager::class.java) ?: return
+        try {
+            sbm.requestAddTileService(
+                ComponentName(context, RadarTileService::class.java),
+                context.getString(R.string.app_name),
+                Icon.createWithResource(context, R.drawable.ic_stat_radar),
+                context.mainExecutor,
+            ) { }
+        } catch (e: Exception) {
+            Log.w(TAG, "requestAddTileService failed", e)
+        }
+    }
 
     fun openWhatsApp(context: Context, packageName: String): Boolean {
         val pm = context.packageManager

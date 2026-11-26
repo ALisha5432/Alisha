@@ -2,6 +2,8 @@ package com.wpradar.ui
 
 import android.Manifest
 import android.os.Build
+import android.text.format.DateUtils
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -19,10 +21,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,15 +42,22 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wpradar.WpRadarApp
+import com.wpradar.data.HistoryEntry
 import com.wpradar.notify.AlertNotifier
 import com.wpradar.service.ListenerStatus
+import com.wpradar.service.WaListenerService
 import com.wpradar.system.SystemStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun HomeScreen(app: WpRadarApp, onOpenSettings: () -> Unit) {
+fun HomeScreen(
+    app: WpRadarApp,
+    history: List<HistoryEntry>,
+    onOpenSettings: () -> Unit,
+    onOpenJournal: () -> Unit,
+) {
     val context = LocalContext.current
     val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
     val connected by ListenerStatus.connected.collectAsStateWithLifecycle()
@@ -60,6 +72,7 @@ fun HomeScreen(app: WpRadarApp, onOpenSettings: () -> Unit) {
     val canNotify = remember(tick) { SystemStatus.canPostNotifications(context) }
     val channelOk = remember(tick, loud) { SystemStatus.isChannelEnabled(context, AlertNotifier.channelId(loud)) }
     val batteryOk = remember(tick) { SystemStatus.isIgnoringBatteryOptimizations(context) }
+    val today = remember(history) { history.count { DateUtils.isToday(it.time) } }
 
     // İcazə var, amma dinləyici qoşulmayıb → sistemdən yenidən bağlamağı xahiş et.
     LaunchedEffect(hasAccess, connected) {
@@ -91,7 +104,7 @@ fun HomeScreen(app: WpRadarApp, onOpenSettings: () -> Unit) {
     val s = settings ?: return
     val listenerOk = hasAccess && connected
     val notifyOk = canNotify && channelOk
-    val allGood = s.enabled && listenerOk && notifyOk && s.keywords.isNotEmpty()
+    val ready = listenerOk && notifyOk && s.keywords.isNotEmpty()
 
     Column(
         Modifier
@@ -100,33 +113,34 @@ fun HomeScreen(app: WpRadarApp, onOpenSettings: () -> Unit) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // ── Ümumi vəziyyət ────────────────────────────────────────────
+        // ── Vəziyyət ──────────────────────────────────────────────────
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = if (allGood) {
+                containerColor = if (s.enabled && ready) {
                     MaterialTheme.colorScheme.primaryContainer
                 } else {
                     MaterialTheme.colorScheme.errorContainer
                 },
             ),
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("📡", style = MaterialTheme.typography.headlineMedium)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
                             when {
-                                !s.enabled -> "Radar dayandırılıb"
-                                allGood -> "Radar işləyir"
-                                else -> "Quraşdırma tamamlanmayıb"
+                                !s.enabled -> "Radar dayanıb"
+                                ready -> "Radar işləyir"
+                                else -> "Quraşdırma lazımdır"
                             },
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            if (s.enabled) "Açar söz gələn kimi səsli xəbər veriləcək" else "Heç bir xəbərdarlıq göndərilmir",
+                            "Qrup: ${if (s.groups.isEmpty()) "hamısı" else s.groups.size.toString()} · " +
+                                "Açar söz: ${s.keywords.size} · Bu gün: $today",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -136,119 +150,97 @@ fun HomeScreen(app: WpRadarApp, onOpenSettings: () -> Unit) {
                     )
                 }
                 Text(
-                    "Qruplar: ${if (s.groups.isEmpty()) "hamısı" else s.groups.size.toString()}   ·   " +
-                        "Açar sözlər: ${s.keywords.size}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    "Son WhatsApp bildirişi: ${if (lastEvent == 0L) "—" else formatTime(lastEvent)}",
+                    "Son WhatsApp bildirişi: ${if (lastEvent == 0L) "hələ yoxdur" else formatTime(lastEvent)}",
                     style = MaterialTheme.typography.bodySmall,
                 )
-                if (s.keywords.isEmpty()) {
-                    Button(onClick = onOpenSettings) { Text("Açar söz əlavə et") }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (s.keywords.isEmpty()) {
+                        Button(onClick = onOpenSettings) { Text("Açar söz əlavə et") }
+                    }
+                    FilledTonalButton(onClick = {
+                        val count = WaListenerService.scanNow()
+                        val message = if (count == null) {
+                            "Dinləyici qoşulmayıb"
+                        } else {
+                            "Paneldəki $count WhatsApp bildirişi yoxlanıldı"
+                        }
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    }) { Text("İndi yoxla") }
+                    FilledTonalButton(onClick = {
+                        if (SystemStatus.canPostNotifications(context)) {
+                            AlertNotifier.showTest(context, s.loudMode, s.repeatAlert)
+                        } else {
+                            askNotifications()
+                        }
+                    }) { Text("Test səsi") }
                 }
             }
         }
 
-        // ── 1. Bildiriş girişi ────────────────────────────────────────
-        StepCard(
-            title = "1. Bildiriş girişi",
-            ok = listenerOk,
-            status = when {
-                !hasAccess -> "İcazə verilməyib"
-                connected -> "Verilib · dinləyici qoşulub"
-                else -> "Verilib, amma dinləyici qoşulmayıb"
-            },
-        ) {
-            HintText("WhatsApp bildirişlərini oxumaq üçün lazımdır. Açılan siyahıda «WP Radar»-ı aktiv edin.")
-            if (!hasAccess) {
-                HintText(
-                    "Android 13+: «Məhdudlaşdırılmış ayar» yazısı çıxsa → «Tətbiq məlumatı» düyməsi → " +
-                        "sağ yuxarıda ⋮ → «Məhdud ayarlara icazə verin». Sonra yenidən «İcazə ver»-ə basın.",
-                )
-            }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { SystemStatus.openNotificationAccessSettings(context) }) {
-                    Text(if (hasAccess) "Ayarlar" else "İcazə ver")
-                }
-                if (!hasAccess) {
-                    OutlinedButton(onClick = { SystemStatus.openAppDetails(context) }) { Text("Tətbiq məlumatı") }
-                } else {
-                    OutlinedButton(onClick = {
+        // ── Quraşdırma ────────────────────────────────────────────────
+        SectionCard(title = "Quraşdırma") {
+            StatusRow(
+                ok = listenerOk,
+                title = "Bildiriş girişi",
+                status = when {
+                    !hasAccess -> "Verilməyib"
+                    connected -> "İşləyir"
+                    else -> "Qoşulmayıb"
+                },
+            ) {
+                when {
+                    !hasAccess -> Button(onClick = { SystemStatus.openNotificationAccessSettings(context) }) {
+                        Text("İcazə ver")
+                    }
+                    !connected -> OutlinedButton(onClick = {
                         SystemStatus.forceReconnect(context)
                         tick++
-                    }) { Text("Yenidən qoş") }
+                    }) { Text("Qoş") }
+                    else -> {}
                 }
             }
-        }
-
-        // ── 2. Bildiriş göndərmə icazəsi ──────────────────────────────
-        StepCard(
-            title = "2. Bildiriş icazəsi",
-            ok = notifyOk,
-            status = when {
-                !canNotify -> "WP Radar bildiriş göstərə bilmir"
-                !channelOk -> "Xəbərdarlıq kanalı söndürülüb"
-                else -> "Verilib"
-            },
-        ) {
-            HintText("Açar söz tapılanda sizə ayrıca, səsli bildiriş göndərmək üçün.")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!canNotify) {
-                    Button(onClick = askNotifications) { Text("İcazə ver") }
-                } else if (!channelOk) {
-                    Button(onClick = {
+            if (!hasAccess) {
+                HintText("«Məhdud ayar» çıxsa: Tətbiq məlumatı → ⋮ → «Məhdud ayarlara icazə ver».")
+                TextButton(onClick = { SystemStatus.openAppDetails(context) }) { Text("Tətbiq məlumatı") }
+            }
+            HorizontalDivider()
+            StatusRow(
+                ok = notifyOk,
+                title = "Bildiriş icazəsi",
+                status = when {
+                    !canNotify -> "Verilməyib"
+                    !channelOk -> "Kanal söndürülüb"
+                    else -> "Var"
+                },
+            ) {
+                when {
+                    !canNotify -> Button(onClick = askNotifications) { Text("İcazə ver") }
+                    !channelOk -> Button(onClick = {
                         SystemStatus.openChannelSettings(context, AlertNotifier.channelId(loud))
-                    }) { Text("Kanalı aç") }
-                }
-                OutlinedButton(onClick = { SystemStatus.openAppNotificationSettings(context) }) {
-                    Text("Bildiriş ayarları")
+                    }) { Text("Aç") }
+                    else -> {}
                 }
             }
-        }
-
-        // ── 3. Batareya ───────────────────────────────────────────────
-        StepCard(
-            title = "3. Batareya optimizasiyası",
-            ok = batteryOk,
-            status = if (batteryOk) "Məhdudiyyət yoxdur" else "Sistem radarı fonda dayandıra bilər",
-        ) {
-            HintText(
-                "Telefon radarı yatırmasın deyə «Məhdudiyyətsiz / Optimallaşdırma» siyahısından çıxarın. " +
-                    "Xiaomi, Huawei, Oppo-da «Avtostart»-a da icazə verin.",
-            )
-            if (!batteryOk) {
-                Button(onClick = { SystemStatus.requestIgnoreBatteryOptimizations(context) }) {
-                    Text("Məhdudiyyəti götür")
+            HorizontalDivider()
+            StatusRow(
+                ok = batteryOk,
+                title = "Batareya",
+                status = if (batteryOk) "Məhdudiyyət yoxdur" else "Sistem radarı yatıra bilər",
+            ) {
+                if (!batteryOk) {
+                    Button(onClick = { SystemStatus.requestIgnoreBatteryOptimizations(context) }) { Text("Düzəlt") }
                 }
             }
         }
 
-        // ── Yoxlama ───────────────────────────────────────────────────
-        SectionCard(title = "Yoxlama", subtitle = "Səsi və vibrasiyanı indi eşidin.") {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
-                    if (SystemStatus.canPostNotifications(context)) {
-                        AlertNotifier.showTest(context, loud)
-                    } else {
-                        askNotifications()
-                    }
-                }) { Text("Test bildirişi") }
-                OutlinedButton(onClick = {
-                    SystemStatus.openChannelSettings(context, AlertNotifier.channelId(loud))
-                }) { Text("Səs ayarları") }
-            }
-        }
-
-        // ── Məsləhətlər ───────────────────────────────────────────────
-        SectionCard(title = "Vacib məsləhətlər") {
-            HintText(
-                "• WhatsApp-da qrupu «Səssiz» (mute) etməyin — onda WhatsApp bildiriş yaratmır və radar onu görmür. " +
-                    "Qrupun səsini söndürmək istəsəniz: telefon Ayarları → Tətbiqlər → WhatsApp → Bildirişlər → " +
-                    "«Qrup bildirişləri» kanalını səssiz edin.",
-            )
-            HintText("• WhatsApp → Ayarlar → Bildirişlər bölməsində bildiriş önizləməsi açıq qalsın.")
-            HintText("• Söhbət ekranda açıq olanda WhatsApp bildiriş göstərmir — radar da o anda susur.")
+        // ── Xəbər gəlmədi? ────────────────────────────────────────────
+        ExpandableCard(title = "Xəbər gəlmədi? Səbəblər") {
+            HintText("• Qrup WhatsApp-da səssizdədir (mute) və ya arxivdədir — WhatsApp bildiriş göstərmir.")
+            HintText("• WhatsApp bildirişləri söndürülüb — söndürməyin, lazımsa «Səssiz» edin.")
+            HintText("• O an WhatsApp ekranda açıq idi və ya WhatsApp Web aktiv idi.")
+            HintText("• Xiaomi/Samsung-da «Avtostart» və «Fonda işləmə» icazəsi yoxdur.")
+            HintText("Jurnalda radarın gördüyü hər mesaj və səbəbi yazılır.")
+            OutlinedButton(onClick = onOpenJournal) { Text("Jurnala bax") }
         }
     }
 }

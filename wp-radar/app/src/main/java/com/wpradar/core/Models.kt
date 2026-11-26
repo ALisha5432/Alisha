@@ -39,9 +39,30 @@ data class RadarSettings(
     val enabled: Boolean = true,
     val groups: List<String> = emptyList(),
     val keywords: List<String> = emptyList(),
-    /** ə=e, ı=i, ş=s, ç=c, ğ=g, ö=o, ü=u kimi müqayisə et. */
+    /** ə=e, ı=i, ş=s, ç=c, ğ=g, ö=o, ü=u və kiril → latın. */
     val foldDiacritics: Boolean = true,
     val includePrivateChats: Boolean = false,
     val loudMode: Boolean = false,
+    /** Səs bildirişə baxılana qədər təkrarlansın. */
+    val repeatAlert: Boolean = false,
     val recentGroups: List<String> = emptyList(),
 )
+
+/** Bir mesaj üçün radarın qərarı — Jurnalda göstərilir. */
+enum class Verdict {
+    /** Açar söz tapıldı, xəbər verildi. */
+    MATCHED,
+    /** Bu mesaja artıq xəbər verilib. */
+    DUPLICATE,
+    /** Açar söz tapıldı, amma WP Radar-ın bildiriş icazəsi yoxdur. */
+    CANNOT_NOTIFY,
+    NO_KEYWORD,
+    CHAT_NOT_WATCHED,
+    PRIVATE_SKIPPED,
+    DISABLED,
+    NO_KEYWORDS,
+    /** Bildirişdən mesaj mətni oxunmadı. */
+    UNREADABLE,
+}
+
+data class Evaluation(val verdict: Verdict, val keyword: String? = null)

@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,18 +34,7 @@ import com.wpradar.system.SystemStatus
 fun HistoryScreen(entries: List<HistoryEntry>) {
     val context = LocalContext.current
     if (entries.isEmpty()) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                "Hələ heç nə tapılmayıb.\nAçar söz olan mesaj gələndə burada görünəcək.",
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        EmptyState("Hələ heç nə tapılmayıb.\nAçar söz olan mesaj gələndə burada görünəcək.")
         return
     }
     LazyColumn(
@@ -58,9 +48,23 @@ fun HistoryScreen(entries: List<HistoryEntry>) {
     }
 }
 
+@Composable
+fun EmptyState(text: String) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HistoryItem(entry: HistoryEntry, onClick: () -> Unit) {
+    val highlight = MaterialTheme.colorScheme.tertiaryContainer
+    val text = remember(entry.id, highlight) { highlightKeyword(entry.text, entry.keyword, highlight) }
     ElevatedCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -86,7 +90,7 @@ private fun HistoryItem(entry: HistoryEntry, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            Text(entry.text, style = MaterialTheme.typography.bodyMedium, maxLines = 8, overflow = TextOverflow.Ellipsis)
+            Text(text, style = MaterialTheme.typography.bodyMedium, maxLines = 8, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,

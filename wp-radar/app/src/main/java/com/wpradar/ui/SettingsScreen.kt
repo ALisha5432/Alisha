@@ -1,5 +1,6 @@
 package com.wpradar.ui
 
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -18,9 +19,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,11 +37,15 @@ import com.wpradar.notify.AlertNotifier
 import com.wpradar.system.SystemStatus
 import kotlinx.coroutines.launch
 
+/** Son silinən element — "geri qaytar" üçün. */
+private data class Removed(val isKeyword: Boolean, val value: String)
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(app: WpRadarApp) {
     val context = LocalContext.current
     val settings by app.settings.settings.collectAsStateWithLifecycle(initialValue = null)
+    var removed by remember { mutableStateOf<Removed?>(null) }
     val s = settings ?: return
     val repo = app.settings
     val scope = app.appScope
@@ -55,76 +63,100 @@ fun SettingsScreen(app: WpRadarApp) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        SectionCard(title = "Açar sözlər", subtitle = "Bir neçəsini vergüllə yazın: ortada, təcili, iclas") {
+            AddItemField(label = "Açar söz") { input -> scope.launch { repo.addKeywords(input) } }
+            if (s.keywords.isEmpty()) {
+                Text(
+                    "Açar söz yoxdur — radar heç nə tapmayacaq.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            RemovableChips(s.keywords) { word ->
+                removed = Removed(isKeyword = true, value = word)
+                scope.launch { repo.removeKeyword(word) }
+            }
+            removed?.takeIf { it.isKeyword }?.let { r ->
+                TextButton(onClick = {
+                    removed = null
+                    scope.launch { repo.addKeywords(r.value) }
+                }) { Text("↶ «${r.value}» geri qaytar") }
+            }
+        }
+
         SectionCard(
-            title = "İzlənən qruplar",
+            title = "Qruplar",
             subtitle = if (s.groups.isEmpty()) {
-                "Siyahı boşdur — BÜTÜN qruplarda axtarılır."
+                "Boşdur — bütün qruplar izlənir."
             } else {
-                "Yalnız bu qruplarda axtarılır. Qrup adının bir hissəsini yazmaq kifayətdir."
+                "Yalnız bu qruplar. Adın bir hissəsi kifayətdir."
             },
         ) {
             AddItemField(label = "Qrup adı") { name -> scope.launch { repo.addGroup(name) } }
-            s.groups.forEach { group ->
-                RemovableItem(group) { scope.launch { repo.removeGroup(group) } }
+            RemovableChips(s.groups) { group ->
+                removed = Removed(isKeyword = false, value = group)
+                scope.launch { repo.removeGroup(group) }
+            }
+            removed?.takeIf { !it.isKeyword }?.let { r ->
+                TextButton(onClick = {
+                    removed = null
+                    scope.launch { repo.addGroup(r.value) }
+                }) { Text("↶ «${r.value}» geri qaytar") }
             }
             if (suggestions.isNotEmpty()) {
-                Text("WhatsApp-da görülən qruplar — toxunub əlavə edin:", style = MaterialTheme.typography.labelMedium)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
-                ) {
+                HintText("WhatsApp-da görülən qruplar:")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     suggestions.forEach { group ->
                         AssistChip(
                             onClick = { scope.launch { repo.addGroup(group) } },
                             label = { Text(group, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             leadingIcon = {
-                                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
+                                Icon(
+                                    Icons.Filled.Add,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AssistChipDefaults.IconSize),
+                                )
                             },
                         )
                     }
                 }
-            } else if (s.groups.isEmpty()) {
-                HintText("İpucu: radar WhatsApp qrup bildirişlərini görən kimi onların adları burada çıxacaq.")
             }
         }
 
-        SectionCard(
-            title = "Açar sözlər",
-            subtitle = "Böyük/kiçik hərf fərq etmir. Bir neçəsini vergüllə birdən yaza bilərsiniz.",
-        ) {
-            AddItemField(label = "Açar söz") { input -> scope.launch { repo.addKeywords(input) } }
-            if (s.keywords.isEmpty()) {
-                Text(
-                    "Hələ açar söz yoxdur — radar heç nə tapmayacaq.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            s.keywords.forEach { word ->
-                RemovableItem(word) { scope.launch { repo.removeKeyword(word) } }
+        SectionCard(title = "Səs") {
+            SwitchRow(
+                title = "Açana qədər çalsın",
+                subtitle = "Səs bildirişə toxunana qədər təkrarlanır.",
+                checked = s.repeatAlert,
+            ) { value -> scope.launch { repo.setRepeatAlert(value) } }
+            SwitchRow(
+                title = "Səssiz rejimdə də çalsın",
+                subtitle = "Alarm səsi kimi çalır.",
+                checked = s.loudMode,
+            ) { value -> scope.launch { repo.setLoudMode(value) } }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    SystemStatus.openChannelSettings(context, AlertNotifier.channelId(s.loudMode))
+                }) { Text("Səs və vibrasiya") }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    OutlinedButton(onClick = { SystemStatus.requestAddTile(context) }) {
+                        Text("Sürətli panelə əlavə et")
+                    }
+                }
             }
         }
 
-        SectionCard(title = "Seçimlər") {
+        SectionCard(title = "Axtarış") {
             SwitchRow(
                 title = "Hərf fərqlərinə baxma",
-                subtitle = "ə=e, ı=i, ş=s, ç=c, ğ=g, ö=o, ü=u. Məs: «Gəncə» açar sözü «GENCE» yazılışını da tapır. " +
-                    "Söndürsəniz, dəqiq Azərbaycan qaydası işləyir (İ/i və I/ı ayrıdır).",
+                subtitle = "ə=e, ş=s, ı=i… və kiril: ортада = ortada",
                 checked = s.foldDiacritics,
             ) { value -> scope.launch { repo.setFoldDiacritics(value) } }
             SwitchRow(
-                title = "Şəxsi çatlarda da axtar",
-                subtitle = "Qrup olmayan yazışmalar da yoxlanılsın (qrup filtri onlara tətbiq olunmur).",
+                title = "Şəxsi çatlar da",
+                subtitle = "Qrup olmayan yazışmalar da yoxlansın.",
                 checked = s.includePrivateChats,
             ) { value -> scope.launch { repo.setIncludePrivateChats(value) } }
-            SwitchRow(
-                title = "Səssiz rejimdə də səslə",
-                subtitle = "Xəbərdarlıq alarm səsi kimi çalır — telefon səssiz/vibrasiyada olsa belə.",
-                checked = s.loudMode,
-            ) { value -> scope.launch { repo.setLoudMode(value) } }
-            OutlinedButton(onClick = {
-                SystemStatus.openChannelSettings(context, AlertNotifier.channelId(s.loudMode))
-            }) { Text("Səs və vibrasiya ayarları") }
         }
 
         Text(

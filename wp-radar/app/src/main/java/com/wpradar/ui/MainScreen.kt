@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,27 +35,32 @@ private data class Tab(val label: String, val title: String, val icon: ImageVect
 private val tabs = listOf(
     Tab("Əsas", "WP Radar", Icons.Filled.Home),
     Tab("Ayarlar", "Ayarlar", Icons.Filled.Settings),
-    Tab("Tarixçə", "Tapılan mesajlar", Icons.AutoMirrored.Filled.List),
+    Tab("Tapılanlar", "Tapılan mesajlar", Icons.Filled.Notifications),
+    Tab("Jurnal", "Jurnal", Icons.AutoMirrored.Filled.List),
 )
 
 private const val TAB_HOME = 0
 private const val TAB_SETTINGS = 1
-private const val TAB_HISTORY = 2
+private const val TAB_FOUND = 2
+private const val TAB_JOURNAL = 3
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(app: WpRadarApp) {
     var selected by rememberSaveable { mutableIntStateOf(TAB_HOME) }
-    var confirmClear by remember { mutableStateOf(false) }
+    var clearTab by remember { mutableStateOf<Int?>(null) }
     val history by app.history.entries.collectAsStateWithLifecycle(initialValue = emptyList())
+    val journal by app.journal.entries.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(tabs[selected].title) },
                 actions = {
-                    if (selected == TAB_HISTORY && history.isNotEmpty()) {
-                        TextButton(onClick = { confirmClear = true }) { Text("Təmizlə") }
+                    val canClear = (selected == TAB_FOUND && history.isNotEmpty()) ||
+                        (selected == TAB_JOURNAL && journal.isNotEmpty())
+                    if (canClear) {
+                        TextButton(onClick = { clearTab = selected }) { Text("Təmizlə") }
                     }
                 },
             )
@@ -66,7 +72,7 @@ fun MainScreen(app: WpRadarApp) {
                         selected = selected == index,
                         onClick = { selected = index },
                         icon = { Icon(tab.icon, contentDescription = null) },
-                        label = { Text(tab.label) },
+                        label = { Text(tab.label, maxLines = 1) },
                     )
                 }
             }
@@ -78,26 +84,35 @@ fun MainScreen(app: WpRadarApp) {
                 .fillMaxSize(),
         ) {
             when (selected) {
-                TAB_HOME -> HomeScreen(app, onOpenSettings = { selected = TAB_SETTINGS })
+                TAB_HOME -> HomeScreen(
+                    app = app,
+                    history = history,
+                    onOpenSettings = { selected = TAB_SETTINGS },
+                    onOpenJournal = { selected = TAB_JOURNAL },
+                )
                 TAB_SETTINGS -> SettingsScreen(app)
-                else -> HistoryScreen(history)
+                TAB_FOUND -> HistoryScreen(history)
+                else -> JournalScreen(journal)
             }
         }
     }
 
-    if (confirmClear) {
+    clearTab?.let { tab ->
         AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            title = { Text("Tarixçə silinsin?") },
-            text = { Text("Bütün tapılmış mesajların siyahısı silinəcək.") },
+            onDismissRequest = { clearTab = null },
+            title = { Text(if (tab == TAB_FOUND) "Tapılanlar silinsin?" else "Jurnal silinsin?") },
             confirmButton = {
                 TextButton(onClick = {
-                    confirmClear = false
-                    app.appScope.launch { app.history.clear() }
+                    clearTab = null
+                    if (tab == TAB_FOUND) {
+                        app.appScope.launch { app.history.clear() }
+                    } else {
+                        app.journal.clear()
+                    }
                 }) { Text("Sil") }
             },
             dismissButton = {
-                TextButton(onClick = { confirmClear = false }) { Text("Ləğv et") }
+                TextButton(onClick = { clearTab = null }) { Text("Ləğv et") }
             },
         )
     }

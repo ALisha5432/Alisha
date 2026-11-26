@@ -26,6 +26,13 @@ Bütün versiyalar eyni imza ilə çıxır, ona görə yenisini köhnəni silmə
    Qrup siyahısı boş qalsa, bütün qruplarda axtarılır.
 6. **Əsas** → **Test bildirişi** ilə səsi yoxlayın.
 
+## Xəbər gəlmədisə
+
+**Jurnal** bölməsinə baxın. Orada radarın gördüyü hər WhatsApp mesajı və nəticəsi yazılır:
+«Xəbər verildi», «Açar söz yoxdur», «Qrup siyahıda deyil», «Şəxsi çat», «Bildiriş icazəsi yoxdur» və s.
+Mesaj Jurnalda heç görünmürsə, WhatsApp onun üçün bildiriş yaratmayıb. Səbəb adətən budur:
+qrup səssizdədir (mute) və ya arxivdədir, WhatsApp bildirişləri söndürülüb, ya da o an WhatsApp açıq idi.
+
 ## Necə işləyir
 
 - `NotificationListenerService` yalnız `com.whatsapp` və `com.whatsapp.w4b` bildirişlərini oxuyur.
@@ -37,7 +44,12 @@ Bütün versiyalar eyni imza ilə çıxır, ona görə yenisini köhnəni silmə
   Hər mesajın açarı (qrup + göndərən + vaxt + mətn) yadda saxlanır, ona görə eyni mesaja ikinci dəfə xəbərdarlıq getmir.
   Telefon yenidən başlasa da bu yaddaş qalır.
 - Xəbərdarlığa toxunanda birbaşa həmin WhatsApp söhbəti açılır (alınmasa — WhatsApp özü).
-- Dinləyici qopanda `requestRebind` çağırılır. Telefon açılanda və tətbiq yenilənəndə də çağırılır.
+- Dinləyici qopanda `requestRebind` çağırılır. Telefon açılanda, tətbiq yenilənəndə və hər 15 dəqiqədən bir
+  (WorkManager) yoxlanılır. Qoşulanda paneldə duran WhatsApp bildirişləri də yenidən yoxlanılır —
+  dinləyici qopuq ikən gələn mesajlar itmir. «İndi yoxla» düyməsi də bunu edir.
+- Kiril ilə yazılmış mesajlar da tapılır (ортада = ortada).
+- «Açana qədər çalsın»: səs bildirişə toxunana qədər təkrarlanır.
+- Sürətli paneldə WP Radar düyməsi: radarı bir toxunuşla aç/söndür.
 
 ## Vacib
 

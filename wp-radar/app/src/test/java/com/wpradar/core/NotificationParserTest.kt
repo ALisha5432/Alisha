@@ -129,4 +129,34 @@ class NotificationParserTest {
         assertEquals("Ailə", NotificationParser.cleanName("Ailə (5 messages)"))
         assertEquals("Ailə", NotificationParser.cleanName("Ailə (2 yeni mesaj)"))
     }
+
+    @Test fun groupDetectedWithoutFlagWhenSenderDiffersFromTitle() {
+        val result = NotificationParser.parse(
+            raw(
+                title = "Ofis",
+                messages = listOf(
+                    RawMessage("Ali", "salam", 1L, fromSelf = false),
+                    RawMessage("Vəli", "kim ortadadır?", 2L, fromSelf = false),
+                ),
+            ),
+        )
+        assertTrue(result.all { it.isGroup })
+        assertEquals(listOf("Ofis", "Ofis"), result.map { it.group })
+        assertEquals(listOf("Ali", "Vəli"), result.map { it.sender })
+    }
+
+    @Test fun groupDetectedFromTitleWithSender() {
+        val m = NotificationParser.parse(
+            raw(title = "Ofis: Vəli", messages = listOf(RawMessage("Vəli", "ortada", 1L, fromSelf = false))),
+        ).single()
+        assertTrue(m.isGroup)
+        assertEquals("Ofis", m.group)
+        assertEquals("Vəli", m.sender)
+    }
+
+    @Test fun ignorableNotifications() {
+        assertTrue(NotificationParser.isIgnorable(raw(title = "WhatsApp", text = "x", summary = true)))
+        assertTrue(NotificationParser.isIgnorable(raw(title = "Ali", text = "zəng", category = "call")))
+        assertFalse(NotificationParser.isIgnorable(raw(title = "Ali", text = "salam")))
+    }
 }

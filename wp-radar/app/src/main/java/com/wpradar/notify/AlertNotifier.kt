@@ -74,6 +74,7 @@ object AlertNotifier {
         msg: ParsedMessage,
         keyword: String,
         loud: Boolean,
+        repeat: Boolean,
         original: PendingIntent?,
         silent: Boolean = false,
     ) {
@@ -117,11 +118,13 @@ object AlertNotifier {
             .setVibrate(VIBRATION)
             .setSilent(silent)
             .build()
+        // Səs bildirişə toxunana və ya onu silənə qədər təkrarlanır.
+        if (repeat && !silent) notification.flags = notification.flags or Notification.FLAG_INSISTENT
 
         nm.notify(NOTIFICATION_TAG, id, notification)
     }
 
-    fun showTest(context: Context, loud: Boolean) {
+    fun showTest(context: Context, loud: Boolean, repeat: Boolean) {
         val msg = ParsedMessage(
             packageName = WaListenerService.WHATSAPP,
             group = "Test qrupu",
@@ -130,6 +133,6 @@ object AlertNotifier {
             timestamp = System.currentTimeMillis(),
             isGroup = true,
         )
-        showMatch(context, msg, keyword = "test", loud = loud, original = null)
+        showMatch(context, msg, keyword = "test", loud = loud, repeat = repeat, original = null)
     }
 }

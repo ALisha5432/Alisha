@@ -27,6 +27,7 @@ class SettingsRepository(private val context: Context) {
         val FOLD = booleanPreferencesKey("fold_diacritics")
         val PRIVATE = booleanPreferencesKey("include_private")
         val LOUD = booleanPreferencesKey("loud_mode")
+        val REPEAT = booleanPreferencesKey("repeat_alert")
         val RECENT_GROUPS = stringPreferencesKey("recent_groups")
     }
 
@@ -40,6 +41,7 @@ class SettingsRepository(private val context: Context) {
                 foldDiacritics = p[Keys.FOLD] ?: true,
                 includePrivateChats = p[Keys.PRIVATE] ?: false,
                 loudMode = p[Keys.LOUD] ?: false,
+                repeatAlert = p[Keys.REPEAT] ?: false,
                 recentGroups = decode(p[Keys.RECENT_GROUPS]),
             )
         }
@@ -50,6 +52,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setFoldDiacritics(value: Boolean) = setFlag(Keys.FOLD, value)
     suspend fun setIncludePrivateChats(value: Boolean) = setFlag(Keys.PRIVATE, value)
     suspend fun setLoudMode(value: Boolean) = setFlag(Keys.LOUD, value)
+    suspend fun setRepeatAlert(value: Boolean) = setFlag(Keys.REPEAT, value)
 
     suspend fun addGroup(name: String) = addItems(Keys.GROUPS, listOf(name))
     suspend fun removeGroup(name: String) = removeItem(Keys.GROUPS, name)

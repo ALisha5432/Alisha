@@ -22,11 +22,18 @@ class KeywordMatcher(private val settings: RadarSettings) {
         }
     }
 
-    /** Tapılan açar sözü (istifadəçinin yazdığı kimi) qaytarır, yoxdursa null. */
-    fun match(msg: ParsedMessage): String? {
-        if (!settings.enabled || keywords.isEmpty()) return null
-        if (!isChatWatched(msg)) return null
+    /** Qərar və (uyğunluq varsa) istifadəçinin yazdığı açar söz. */
+    fun evaluate(msg: ParsedMessage): Evaluation {
+        if (!settings.enabled) return Evaluation(Verdict.DISABLED)
+        if (keywords.isEmpty()) return Evaluation(Verdict.NO_KEYWORDS)
+        if (!msg.isGroup && !settings.includePrivateChats) return Evaluation(Verdict.PRIVATE_SKIPPED)
+        if (!isChatWatched(msg)) return Evaluation(Verdict.CHAT_NOT_WATCHED)
         val text = TextNormalizer.normalize(msg.text, fold)
-        return keywords.firstOrNull { text.contains(it.second) }?.first
+        val hit = keywords.firstOrNull { text.contains(it.second) } ?: return Evaluation(Verdict.NO_KEYWORD)
+        return Evaluation(Verdict.MATCHED, hit.first)
     }
+
+    /** Tapılan açar söz, yoxdursa null. */
+    fun match(msg: ParsedMessage): String? =
+        evaluate(msg).takeIf { it.verdict == Verdict.MATCHED }?.keyword
 }

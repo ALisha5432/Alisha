@@ -30,10 +30,15 @@ object NotificationParser {
         return TextNormalizer.stripInvisible(value.toString()).trim().ifEmpty { null }
     }
 
+    /**
+     * Mesaj olmayan bildirişlər: qrup xülasəsi ("3 söhbətdən 5 mesaj" — ayrı-ayrı bildirişləri
+     * təkrarlayır), davamlı (yedəkləmə, "mesajlar yoxlanılır"), zənglər və sistem bildirişləri.
+     */
+    fun isIgnorable(raw: RawNotification): Boolean =
+        raw.isGroupSummary || raw.isOngoing || (raw.category != null && raw.category in skippedCategories)
+
     fun parse(raw: RawNotification): List<ParsedMessage> {
-        // Qrup xülasəsi ("3 söhbətdən 5 mesaj") ayrı-ayrı bildirişləri təkrarlayır — atlayırıq.
-        if (raw.isGroupSummary || raw.isOngoing) return emptyList()
-        if (raw.category != null && raw.category in skippedCategories) return emptyList()
+        if (isIgnorable(raw)) return emptyList()
         val title = cleanName(raw.title)
         val conversation = cleanName(raw.conversationTitle)
         return if (raw.messages.isNotEmpty()) {
@@ -48,7 +53,11 @@ object NotificationParser {
         title: String?,
         conversation: String?,
     ): List<ParsedMessage> {
-        val isGroup = raw.isGroupConversation || conversation != null
+        // Bəzi WhatsApp versiyaları qrup bayrağını qoymur. Amma göndərənin adı başlıqdan
+        // fərqlidirsə (başlıq = qrup adı) və ya bir neçə göndərən varsa — bu, qrupdur.
+        val senders = raw.messages.filter { !it.fromSelf }.mapNotNull { cleanName(it.sender) }.toSet()
+        val looksLikeGroup = senders.size >= 2 || (title != null && senders.isNotEmpty() && title !in senders)
+        val isGroup = raw.isGroupConversation || conversation != null || looksLikeGroup
         val group = when {
             !isGroup -> null
             conversation != null -> conversation

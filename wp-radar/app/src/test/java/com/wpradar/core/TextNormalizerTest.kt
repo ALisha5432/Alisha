@@ -1,6 +1,7 @@
 package com.wpradar.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class TextNormalizerTest {
@@ -32,5 +33,27 @@ class TextNormalizerTest {
     @Test fun nullAndEmpty() {
         assertEquals("", TextNormalizer.normalize(null, true))
         assertEquals("", strict("   "))
+    }
+
+    /** ОРТАДА, ҜӘНҸӘ, шәһәр — kiril ilə yazılmış mesajlar da tapılsın. */
+    @Test fun cyrillicFoldsToLatin() {
+        assertEquals("ortada", loose("ОРТАДА"))
+        assertEquals("gence", loose("ҜӘНҸӘ"))
+        assertEquals("seher", loose("шәһәр"))
+    }
+
+    @Test fun cyrillicKeptInStrictMode() =
+        assertEquals("ортада", strict("ОРТАДА"))
+
+    @Test fun latinUnchangedByCyrillicMap() = assertEquals("pecxoya", loose("PECXOYA"))
+
+    @Test fun findMatchLocatesKeyword() {
+        assertEquals(7..12, TextNormalizer.findMatch("Bu gün ORTADA nə var?", "ortada", true))
+        assertEquals(6..10, TextNormalizer.findMatch("Sabah İCLAS var", "iclas", false))
+        assertEquals(0..4, TextNormalizer.findMatch("gence-ye gedirik", "Gəncə", true))
+        assertEquals(0..12, TextNormalizer.findMatch("sabah   iclas", "sabah iclas", false))
+        assertEquals(3..8, TextNormalizer.findMatch("bu ортада", "ortada", true))
+        assertNull(TextNormalizer.findMatch("salam", "iclas", true))
+        assertNull(TextNormalizer.findMatch("salam", "   ", true))
     }
 }
